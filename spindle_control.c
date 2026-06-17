@@ -39,6 +39,11 @@ Servo 180° = 0.002 sec (0.002 / 0.000064 = ~31 ticks)
 // If servo moves the wrong way, swap these values
 #define PEN_SERVO_DOWN     31      
 #define PEN_SERVO_UP       16        
+
+// Dynamic pen pressure: Z-depth range that maps to full servo travel.
+// Z >= 0 = pen up, Z = -PEN_PRESSURE_MAX_DEPTH = full pressure (servo fully down).
+// Values between 0 and -max are linearly interpolated for variable brush strokes.
+#define PEN_PRESSURE_MAX_DEPTH  5.0  // mm (Z = -5.0 = maximum pressure)
  
 // Servo hardware defines (Timer2 OC2A on Digital Pin 11)
 #define SERVO_PWM_DDR     DDRB
@@ -67,15 +72,32 @@ void pen_down()
   SERVO_OCR_REGISTER = PEN_SERVO_DOWN;
 }
 
+// Set servo to a specific tick value (clamped to valid range)
+void pen_set_pressure(uint8_t tick)
+{
+  if (tick < PEN_SERVO_UP) { tick = PEN_SERVO_UP; }
+  if (tick > PEN_SERVO_DOWN) { tick = PEN_SERVO_DOWN; }
+  SERVO_OCR_REGISTER = tick;
+}
+
 void set_pen_pos()
 {
   float wpos_z;
   wpos_z = system_convert_axis_steps_to_mpos(sys_position, Z_AXIS) - gc_state.coord_system[Z_AXIS];
-  if (wpos_z >= 0.1) {
+  
+  if (wpos_z >= 0.0) {
+    // Pen up: Z is at or above zero
     pen_up();
-  }
-  else {
-    pen_down();
+  } else {
+    // Dynamic pressure: map Z depth to servo angle
+    // Z = 0 -> PEN_SERVO_UP, Z = -MAX_DEPTH -> PEN_SERVO_DOWN
+    float depth = -wpos_z; // Make positive
+    if (depth > PEN_PRESSURE_MAX_DEPTH) { depth = PEN_PRESSURE_MAX_DEPTH; }
+    
+    // Linear interpolation: UP + (DOWN - UP) * (depth / max_depth)
+    float ratio = depth / PEN_PRESSURE_MAX_DEPTH;
+    uint8_t tick = PEN_SERVO_UP + (uint8_t)((float)(PEN_SERVO_DOWN - PEN_SERVO_UP) * ratio);
+    pen_set_pressure(tick);
   }	
 }
 

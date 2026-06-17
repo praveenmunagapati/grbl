@@ -35,6 +35,7 @@ void spindle_init();
 void init_servo();
 void pen_up();
 void pen_down();
+void pen_set_pressure(uint8_t tick);
 void set_pen_pos();
 
 // Returns current spindle output state.
