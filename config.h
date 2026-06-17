@@ -55,7 +55,8 @@
 #define CMD_RAPID_OVR_LOW 0x97
 
 // Homing init lock - forces homing before operation
-#define HOMING_INIT_LOCK
+// NOTE: Disabled because this machine has no limit switches.
+// #define HOMING_INIT_LOCK
 
 // Homing cycle - 2-axis sequential (X then Y)
 #define HOMING_CYCLE_0 (1<<X_AXIS)  // First home X
@@ -76,7 +77,8 @@
 #define N_DECIMAL_RPMVALUE        0
 
 // Check limit switch states at init
-#define CHECK_LIMITS_AT_INIT
+// NOTE: Disabled - no limit switches installed.
+// #define CHECK_LIMITS_AT_INIT
 
 // ---------------------------------------------------------------------------------------
 // ADVANCED CONFIGURATION OPTIONS:
