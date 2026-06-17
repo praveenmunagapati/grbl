@@ -210,6 +210,9 @@ uint8_t system_execute_line(char *line)
             #ifdef ENABLE_RESTORE_EEPROM_WIPE_ALL
               case '*': settings_restore(SETTINGS_RESTORE_ALL); break;
             #endif
+            #ifdef ENABLE_JOB_STATE_SAVE
+              case 'J': job_state_clear(); break;
+            #endif
             default: return(STATUS_INVALID_STATEMENT);
           }
           report_feedback_message(MESSAGE_RESTORE_DEFAULTS);

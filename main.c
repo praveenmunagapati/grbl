@@ -82,8 +82,18 @@ int main(void)
     plan_sync_position();
     gc_sync_position();
 
+    // Initialize job state save/resume module
+    #ifdef ENABLE_JOB_STATE_SAVE
+      job_state_init();
+    #endif
+
     // Print welcome message. Indicates an initialization has occured at power-up or with a reset.
     report_init_message();
+
+    // Report saved job position if available (for resume after power loss)
+    #ifdef ENABLE_JOB_STATE_SAVE
+      job_state_report();
+    #endif
 
     // Start Grbl main loop. Processes program inputs and executes them.
     protocol_main_loop();

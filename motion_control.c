@@ -52,6 +52,11 @@ void mc_line(float *target, plan_line_data_t *pl_data)
 
   // Plan and queue motion into planner buffer
   plan_buffer_line(target, pl_data);
+  
+  // Periodically save position to EEPROM for power loss recovery
+  #ifdef ENABLE_JOB_STATE_SAVE
+    job_state_tick(target);
+  #endif
 }
 
 

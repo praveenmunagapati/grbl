@@ -158,5 +158,10 @@
 // Force buffer sync during work coordinate offset changes
 #define FORCE_BUFFER_SYNC_DURING_WCO_CHANGE
 
+// Job state save to EEPROM for resume after power loss
+#define ENABLE_JOB_STATE_SAVE
+#define JOB_STATE_SAVE_INTERVAL 50    // Save every N planner blocks
+#define JOB_STATE_NUM_SLOTS 8         // Ring buffer slots for wear leveling
+
 
 #endif

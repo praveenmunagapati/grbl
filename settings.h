@@ -51,6 +51,7 @@
 
 // Define EEPROM memory address location values for Grbl settings and parameters
 #define EEPROM_ADDR_GLOBAL         1U
+#define EEPROM_ADDR_JOB_STATE      400U  // Job state save/resume (8 slots x 12 bytes = 96 bytes)
 #define EEPROM_ADDR_PARAMETERS     512U
 #define EEPROM_ADDR_STARTUP_BLOCK  768U
 #define EEPROM_ADDR_BUILD_INFO     942U
