@@ -60,6 +60,7 @@
 #define MOTION_MODE_LINEAR 1 // G1 (Do not alter value)
 #define MOTION_MODE_CW_ARC 2  // G2 (Do not alter value)
 #define MOTION_MODE_CCW_ARC 3  // G3 (Do not alter value)
+#define MOTION_MODE_CUBIC_SPLINE 5 // G5 (Do not alter value)
 #define MOTION_MODE_NONE 80 // G80 (Do not alter value)
 
 // Modal Group G2: Plane select
@@ -114,6 +115,7 @@
 #define WORD_X  10
 #define WORD_Y  11
 #define WORD_Z  12
+#define WORD_Q  13
 
 // Define g-code parser position updating flags
 #define GC_UPDATE_POS_TARGET   0 // Must be zero
@@ -145,6 +147,7 @@ typedef struct {
   uint8_t l;       // G10 parameters
   int32_t n;       // Line number
   float p;         // G10 or dwell parameters
+  float q;         // Bezier control point Q
   float r;         // Arc radius
   float s;         // Spindle speed
   uint8_t t;       // Tool selection

@@ -44,6 +44,12 @@ void mc_line(float *target, plan_line_data_t *pl_data);
 void mc_arc(float *target, plan_line_data_t *pl_data, float *position, float *offset, float radius,
   uint8_t axis_0, uint8_t axis_1, uint8_t axis_linear, uint8_t is_clockwise_arc);
 
+// Execute a cubic bezier curve in offset mode format. position == current xyz, target == target xyz,
+// offset_ij == offset from current to first control point, offset_pq == offset from target to second
+// control point, axis_XXX defines the plane in tool space.
+void mc_bezier(float *target, plan_line_data_t *pl_data, float *position, float *offset_ij, float *offset_pq,
+  uint8_t axis_0, uint8_t axis_1);
+
 // Dwell for a specific number of seconds
 void mc_dwell(float seconds);
 

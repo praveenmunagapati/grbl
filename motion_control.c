@@ -140,6 +140,70 @@ void mc_arc(float *target, plan_line_data_t *pl_data, float *position, float *of
 }
 
 
+// Execute a cubic bezier curve in offset mode format.
+void mc_bezier(float *target, plan_line_data_t *pl_data, float *position, float *offset_ij, float *offset_pq,
+  uint8_t axis_0, uint8_t axis_1)
+{
+  float p0[2], p1[2], p2[2], p3[2];
+
+  p0[0] = position[axis_0];
+  p0[1] = position[axis_1];
+  
+  p1[0] = p0[0] + offset_ij[axis_0]; // I and J are relative to start point
+  p1[1] = p0[1] + offset_ij[axis_1];
+
+  p3[0] = target[axis_0];
+  p3[1] = target[axis_1];
+
+  p2[0] = p3[0] + offset_pq[axis_0]; // P and Q are relative to end point
+  p2[1] = p3[1] + offset_pq[axis_1];
+
+  // Approximate length of the control polygon to determine number of segments
+  float dist1 = hypot_f(p1[0] - p0[0], p1[1] - p0[1]);
+  float dist2 = hypot_f(p2[0] - p1[0], p2[1] - p1[1]);
+  float dist3 = hypot_f(p3[0] - p2[0], p3[1] - p2[1]);
+  
+  float curve_length = dist1 + dist2 + dist3;
+  
+  // Set segment length to ~0.5mm
+  uint16_t segments = floor(curve_length / 0.5);
+  if (segments < 1) { segments = 1; }
+  
+  float t_step = 1.0 / segments;
+  float t = 0.0;
+  
+  // Find the linear axis
+  uint8_t axis_linear = 0;
+  if (axis_0 == X_AXIS && axis_1 == Y_AXIS) { axis_linear = Z_AXIS; }
+  else if (axis_0 == X_AXIS && axis_1 == Z_AXIS) { axis_linear = Y_AXIS; }
+  else { axis_linear = X_AXIS; }
+  
+  float start_linear = position[axis_linear];
+  float linear_per_segment = (target[axis_linear] - start_linear) / segments;
+
+  for (uint16_t i = 1; i < segments; i++) {
+    t += t_step;
+    float mt = 1.0 - t;
+    float mt2 = mt * mt;
+    float mt3 = mt2 * mt;
+    float t2 = t * t;
+    float t3 = t2 * t;
+
+    position[axis_0] = mt3*p0[0] + 3.0*mt2*t*p1[0] + 3.0*mt*t2*p2[0] + t3*p3[0];
+    position[axis_1] = mt3*p0[1] + 3.0*mt2*t*p1[1] + 3.0*mt*t2*p2[1] + t3*p3[1];
+    position[axis_linear] = start_linear + linear_per_segment * i;
+
+    mc_line(position, pl_data);
+    
+    // Bail mid-curve on system abort.
+    if (sys.abort) { return; }
+  }
+  
+  // Ensure last segment arrives exactly at target location.
+  mc_line(target, pl_data);
+}
+
+
 // Execute dwell in seconds.
 void mc_dwell(float seconds)
 {

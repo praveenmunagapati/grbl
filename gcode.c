@@ -151,8 +151,8 @@ uint8_t gc_execute_line(char *line)
               mantissa = 0; // Set to zero to indicate valid non-integer G command.
             }                
             break;
-          case 0: case 1: case 2: case 3:
-            // Check for G0/1/2/3 being called with G10/28/30/92 on same block.
+          case 0: case 1: case 2: case 3: case 5:
+            // Check for G0/1/2/3/5 being called with G10/28/30/92 on same block.
             if (axis_command) { FAIL(STATUS_GCODE_AXIS_COMMAND_CONFLICT); } // [Axis word/command conflict]
             axis_command = AXIS_COMMAND_MOTION_MODE;
             // No break. Continues to next line.
@@ -242,6 +242,7 @@ uint8_t gc_execute_line(char *line)
           case 'L': word_bit = WORD_L; gc_block.values.l = int_value; break;
           case 'N': word_bit = WORD_N; gc_block.values.n = trunc(value); break;
           case 'P': word_bit = WORD_P; gc_block.values.p = value; break;
+          case 'Q': word_bit = WORD_Q; gc_block.values.q = value; break;
           case 'R': word_bit = WORD_R; gc_block.values.r = value; break;
           case 'S': word_bit = WORD_S; gc_block.values.s = value; break;
           case 'T': word_bit = WORD_T; 
@@ -467,6 +468,22 @@ uint8_t gc_execute_line(char *line)
         case MOTION_MODE_LINEAR:
           if (!axis_words) { axis_command = AXIS_COMMAND_NONE; }
           break;
+        case MOTION_MODE_CUBIC_SPLINE:
+          if (!axis_words) { FAIL(STATUS_GCODE_NO_AXIS_WORDS); }
+          if (!(axis_words & (bit(axis_0)|bit(axis_1)))) { FAIL(STATUS_GCODE_NO_AXIS_WORDS_IN_PLANE); }
+          
+          // G5 requires I, J, P, Q words for control points
+          if (!(value_words & (bit(WORD_I)|bit(WORD_J)|bit(WORD_P)|bit(WORD_Q)))) { FAIL(STATUS_GCODE_INVALID_TARGET); }
+          bit_false(value_words,(bit(WORD_I)|bit(WORD_J)|bit(WORD_P)|bit(WORD_Q)));
+          
+          // Convert control point values to proper units.
+          if (gc_block.modal.units == UNITS_MODE_INCHES) {
+             gc_block.values.ijk[axis_0] *= MM_PER_INCH;
+             gc_block.values.ijk[axis_1] *= MM_PER_INCH;
+             gc_block.values.p *= MM_PER_INCH;
+             gc_block.values.q *= MM_PER_INCH;
+          }
+          break;
         case MOTION_MODE_CW_ARC: 
           gc_parser_flags |= GC_PARSER_ARC_IS_CLOCKWISE; // No break intentional.
         case MOTION_MODE_CCW_ARC:
@@ -659,6 +676,9 @@ uint8_t gc_execute_line(char *line)
       } else if ((gc_state.modal.motion == MOTION_MODE_CW_ARC) || (gc_state.modal.motion == MOTION_MODE_CCW_ARC)) {
         mc_arc(gc_block.values.xyz, pl_data, gc_state.position, gc_block.values.ijk, gc_block.values.r,
             axis_0, axis_1, axis_linear, bit_istrue(gc_parser_flags,GC_PARSER_ARC_IS_CLOCKWISE));
+      } else if (gc_state.modal.motion == MOTION_MODE_CUBIC_SPLINE) {
+        float pq[2] = {gc_block.values.p, gc_block.values.q};
+        mc_bezier(gc_block.values.xyz, pl_data, gc_state.position, gc_block.values.ijk, pq, axis_0, axis_1);
       }
      
       memcpy(gc_state.position, gc_block.values.xyz, sizeof(gc_block.values.xyz)); // gc_state.position[] = gc_block.values.xyz[]
