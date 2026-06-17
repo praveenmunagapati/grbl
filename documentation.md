@@ -33,7 +33,7 @@ graph TD
     F --> G["Planner<br/>planner.c"]
     G --> H["Stepper Driver<br/>stepper.c"]
     H --> I["Step/Dir Pins<br/>(X, Y, Z)"]
-    H --> J["Pen Servo<br/>spindle_control.c"]
+    H --> J["Pen Servo<br/>pen_control.c"]
     E --> K["Settings<br/>settings.c / EEPROM"]
     E --> L["Reports<br/>report.c"]
     
@@ -87,7 +87,7 @@ G-code String → Parser → Motion Control → Planner Buffer → Segment Buffe
 
 | Module | Files | Purpose |
 |---|---|---|
-| **Spindle / Pen Servo** | [spindle_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c), [spindle_control.h](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.h) | Pen servo control (up/down), spindle enable pin |
+| **Pen Control** | [pen_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c), [pen_control.h](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.h) | Pen servo control (up/down), pen enable pin |
 | **Limits** | [limits.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/limits.c), [limits.h](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/limits.h) | Homing cycle, hard/soft limit management |
 | **Serial** | [serial.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/serial.c), [serial.h](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/serial.h) | UART TX/RX with ring buffers and realtime command interception |
 | **Jog** | [jog.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/jog.c), [jog.h](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/jog.h) | `$J=` jogging command support |
@@ -175,25 +175,25 @@ Servo 180° position: 0.002 s / 0.000064 s = ~31 ticks
 
 ### 5.2 Key Functions
 
-Defined in [spindle_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c):
+Defined in [pen_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c):
 
 | Function | Location | Description |
 |----------|:--------:|-------------|
-| [init_servo()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c#L52-L58) | Line 52 | Configures Timer2 for servo PWM, calls `set_pen_pos()` |
-| [pen_up()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c#L60-L63) | Line 60 | Sets OCR2A = `PEN_SERVO_UP` (16) |
-| [pen_down()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c#L65-L68) | Line 65 | Sets OCR2A = `PEN_SERVO_DOWN` (31) |
-| [set_pen_pos()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c#L70-L80) | Line 70 | Reads Z work position, calls pen_up/pen_down |
+| [init_servo()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c#L57-L63) | Line 57 | Configures Timer2 for servo PWM, calls `set_pen_pos()` |
+| [pen_up()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c#L65-L68) | Line 65 | Sets OCR2A = `PEN_SERVO_UP` (16) |
+| [pen_down()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c#L70-L73) | Line 70 | Sets OCR2A = `PEN_SERVO_DOWN` (31) |
+| [set_pen_pos()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c#L83-L102) | Line 83 | Reads Z work position, calls pen_up/pen_down |
 
 ### 5.3 Integration Points
 
-The servo is initialized inside `spindle_init()` and called from:
+The servo is initialized inside `pen_init()` and called from:
 
-1. **[spindle_init()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c#L83)** — Called at boot via `main.c`
+1. **[pen_init()](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c#L105)** — Called at boot via `main.c`
 2. **[Stepper ISR](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/stepper.c#L366-L370)** — `set_pen_pos()` called on each new segment load.
 
 ### 5.4 Tuning the Servo
 
-To adjust servo travel, edit these constants in [spindle_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c#L40-L41):
+To adjust servo travel, edit these constants in [pen_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c#L40-L41):
 
 ```c
 #define PEN_SERVO_DOWN     31   // Servo position for pen down
@@ -393,7 +393,7 @@ Main Loop (forever):
   8.  Reset system variables, preserve state
   9.  serial_reset_read_buffer()
   10. gc_init()          → Reset parser to defaults
-  11. spindle_init()     → Init spindle pin + servo (PEN_SERVO)
+  11. pen_init()         → Init pen pin + servo (PEN_SERVO)
   12. limits_init()
   13. plan_reset()        → Clear planner buffer
   14. st_reset()          → Clear stepper subsystem
@@ -467,7 +467,7 @@ grbl/
 ├── planner.c/h             # Acceleration planner (look-ahead)
 ├── stepper.c/h             # Stepper ISR (Bresenham + AMASS)
 │
-├── spindle_control.c/h     # ★ Pen servo + spindle enable
+├── pen_control.c/h         # ★ Pen servo + pen enable
 ├── limits.c/h              # Homing & hard limits
 ├── jog.c/h                 # Jog command handler
 │
@@ -539,7 +539,7 @@ In [config.h](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/config.h#L31
 
 ### Adjusting Pen Servo Positions
 
-In [spindle_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c#L40-L41):
+In [pen_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c#L40-L41):
 ```c
 #define PEN_SERVO_DOWN  31   // Decrease for less travel
 #define PEN_SERVO_UP    16   // Increase for less travel
@@ -547,9 +547,9 @@ In [spindle_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spi
 
 ### Adjusting Pen Threshold
 
-In [spindle_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/spindle_control.c#L74):
+In [pen_control.c](file:///c:/Users/sir/Desktop/firmware/Penplotter/grbl/pen_control.c#L88):
 ```c
-if (wpos_z >= 0.1) {  // Change 0.1 to adjust the Z threshold
+if (wpos_z >= 0.0) {  // Change 0.0 to adjust the Z threshold
 ```
 
 ### Changing Steps/mm via Serial
