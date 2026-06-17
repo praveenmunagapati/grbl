@@ -46,14 +46,14 @@
 #include "defaults.h"
 #include "cpu_map.h"
 #include "planner.h"
-#include "coolant_control.h"
+
 #include "eeprom.h"
 #include "gcode.h"
 #include "limits.h"
 #include "motion_control.h"
 #include "planner.h"
 #include "print.h"
-#include "probe.h"
+
 #include "protocol.h"
 #include "report.h"
 #include "serial.h"
@@ -68,35 +68,7 @@
   #error "Required HOMING_CYCLE_0 not defined."
 #endif
 
-#if defined(USE_SPINDLE_DIR_AS_ENABLE_PIN) && !defined(VARIABLE_SPINDLE)
-  #error "USE_SPINDLE_DIR_AS_ENABLE_PIN may only be used with VARIABLE_SPINDLE enabled"
-#endif
 
-#if defined(USE_SPINDLE_DIR_AS_ENABLE_PIN) && !defined(CPU_MAP_ATMEGA328P)
-  #error "USE_SPINDLE_DIR_AS_ENABLE_PIN may only be used with a 328p processor"
-#endif
-
-#if !defined(USE_SPINDLE_DIR_AS_ENABLE_PIN) && defined(SPINDLE_ENABLE_OFF_WITH_ZERO_SPEED)
-  #error "SPINDLE_ENABLE_OFF_WITH_ZERO_SPEED may only be used with USE_SPINDLE_DIR_AS_ENABLE_PIN enabled"
-#endif
-
-#if defined(PARKING_ENABLE)
-  #if defined(HOMING_FORCE_SET_ORIGIN)
-    #error "HOMING_FORCE_SET_ORIGIN is not supported with PARKING_ENABLE at this time."
-  #endif
-#endif
-
-#if defined(ENABLE_PARKING_OVERRIDE_CONTROL)
-  #if !defined(PARKING_ENABLE)
-    #error "ENABLE_PARKING_OVERRIDE_CONTROL must be enabled with PARKING_ENABLE."
-  #endif
-#endif
-
-#if defined(SPINDLE_PWM_MIN_VALUE)
-  #if !(SPINDLE_PWM_MIN_VALUE > 0)
-    #error "SPINDLE_PWM_MIN_VALUE must be greater than zero."
-  #endif
-#endif
 
 #if (REPORT_WCO_REFRESH_BUSY_COUNT < REPORT_WCO_REFRESH_IDLE_COUNT)
   #error "WCO busy refresh is less than idle refresh."

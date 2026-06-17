@@ -75,8 +75,6 @@ void settings_restore(uint8_t restore_flag) {
     settings.junction_deviation = DEFAULT_JUNCTION_DEVIATION;
     settings.arc_tolerance = DEFAULT_ARC_TOLERANCE;
 
-    settings.rpm_max = DEFAULT_SPINDLE_RPM_MAX;
-    settings.rpm_min = DEFAULT_SPINDLE_RPM_MIN;
 
     settings.homing_dir_mask = DEFAULT_HOMING_DIR_MASK;
     settings.homing_feed_rate = DEFAULT_HOMING_FEED_RATE;
@@ -86,13 +84,13 @@ void settings_restore(uint8_t restore_flag) {
 
     settings.flags = 0;
     if (DEFAULT_REPORT_INCHES) { settings.flags |= BITFLAG_REPORT_INCHES; }
-    if (DEFAULT_LASER_MODE) { settings.flags |= BITFLAG_LASER_MODE; }
+
     if (DEFAULT_INVERT_ST_ENABLE) { settings.flags |= BITFLAG_INVERT_ST_ENABLE; }
     if (DEFAULT_HARD_LIMIT_ENABLE) { settings.flags |= BITFLAG_HARD_LIMIT_ENABLE; }
     if (DEFAULT_HOMING_ENABLE) { settings.flags |= BITFLAG_HOMING_ENABLE; }
     if (DEFAULT_SOFT_LIMIT_ENABLE) { settings.flags |= BITFLAG_SOFT_LIMIT_ENABLE; }
     if (DEFAULT_INVERT_LIMIT_PINS) { settings.flags |= BITFLAG_INVERT_LIMIT_PINS; }
-    if (DEFAULT_INVERT_PROBE_PIN) { settings.flags |= BITFLAG_INVERT_PROBE_PIN; }
+
 
     settings.steps_per_mm[X_AXIS] = DEFAULT_X_STEPS_PER_MM;
     settings.steps_per_mm[Y_AXIS] = DEFAULT_Y_STEPS_PER_MM;
@@ -251,11 +249,7 @@ uint8_t settings_store_global_setting(uint8_t parameter, float value) {
         if (int_value) { settings.flags |= BITFLAG_INVERT_LIMIT_PINS; }
         else { settings.flags &= ~BITFLAG_INVERT_LIMIT_PINS; }
         break;
-      case 6: // Reset to ensure change. Immediate re-init may cause problems.
-        if (int_value) { settings.flags |= BITFLAG_INVERT_PROBE_PIN; }
-        else { settings.flags &= ~BITFLAG_INVERT_PROBE_PIN; }
-        probe_configure_invert_mask(false);
-        break;
+      case 6: break; // Reserved (was probe pin invert)
       case 10: settings.status_report_mask = int_value; break;
       case 11: settings.junction_deviation = value; break;
       case 12: settings.arc_tolerance = value; break;
@@ -287,16 +281,9 @@ uint8_t settings_store_global_setting(uint8_t parameter, float value) {
       case 25: settings.homing_seek_rate = value; break;
       case 26: settings.homing_debounce_delay = int_value; break;
       case 27: settings.homing_pulloff = value; break;
-      case 30: settings.rpm_max = value; spindle_init(); break; // Re-initialize spindle rpm calibration
-      case 31: settings.rpm_min = value; spindle_init(); break; // Re-initialize spindle rpm calibration
-      case 32:
-        #ifdef VARIABLE_SPINDLE
-          if (int_value) { settings.flags |= BITFLAG_LASER_MODE; }
-          else { settings.flags &= ~BITFLAG_LASER_MODE; }
-        #else
-          return(STATUS_SETTING_DISABLED_LASER);
-        #endif
-        break;
+      case 30: break; // Reserved (was spindle RPM max)
+      case 31: break; // Reserved (was spindle RPM min)
+      case 32: return(STATUS_SETTING_DISABLED_LASER);
       default:
         return(STATUS_INVALID_STATEMENT);
     }
