@@ -1,5 +1,5 @@
 /*
-  spindle_control.c - pen servo control methods
+  pen_control.c - pen servo control methods
   Part of Grbl - Pen Plotter Edition
  
   PEN_SERVO update by Bart Dring 8/2017
@@ -102,44 +102,44 @@ void set_pen_pos()
 }
 
  
-void spindle_init()
+void pen_init()
 {
-  // Configure spindle enable pin as output.
-  SPINDLE_ENABLE_DDR |= (1<<SPINDLE_ENABLE_BIT);
-  spindle_stop();
+  // Configure pen enable pin as output.
+  PEN_ENABLE_DDR |= (1<<PEN_ENABLE_BIT);
+  pen_stop();
   init_servo(); // Initialize pen servo
 }
  
  
-uint8_t spindle_get_state()
+uint8_t pen_get_state()
 {
-  if (bit_istrue(SPINDLE_ENABLE_PORT,(1<<SPINDLE_ENABLE_BIT))) {        
-    return(SPINDLE_STATE_CW);
+  if (bit_istrue(PEN_ENABLE_PORT,(1<<PEN_ENABLE_BIT))) {        
+    return(PEN_STATE_CW);
   }
-  return(SPINDLE_STATE_DISABLE);
+  return(PEN_STATE_DISABLE);
 }
  
  
-void spindle_stop()
+void pen_stop()
 {
-  SPINDLE_ENABLE_PORT &= ~(1<<SPINDLE_ENABLE_BIT); // Set pin to low
+  PEN_ENABLE_PORT &= ~(1<<PEN_ENABLE_BIT); // Set pin to low
 }
 
  
-void _spindle_set_state(uint8_t state)
+void _pen_set_state(uint8_t state)
 {
   if (sys.abort) { return; } // Block during abort.
-  if (state == SPINDLE_DISABLE) {
-    spindle_stop();
+  if (state == PEN_STATE_DISABLE) {
+    pen_stop();
   } else {
-    SPINDLE_ENABLE_PORT |= (1<<SPINDLE_ENABLE_BIT);
+    PEN_ENABLE_PORT |= (1<<PEN_ENABLE_BIT);
   }
   sys.report_ovr_counter = 0; // Set to report change immediately
 }
 
-void _spindle_sync(uint8_t state)
+void _pen_sync(uint8_t state)
 {
   if (sys.state == STATE_CHECK_MODE) { return; }
-  protocol_buffer_synchronize(); // Empty planner buffer to ensure spindle is set when programmed.
-  _spindle_set_state(state);
+  protocol_buffer_synchronize(); // Empty planner buffer to ensure pen is set when programmed.
+  _pen_set_state(state);
 }
