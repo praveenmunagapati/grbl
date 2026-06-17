@@ -65,7 +65,7 @@
 #define N_HOMING_LOCATE_CYCLE 1
 
 // Number of startup blocks stored in EEPROM
-#define N_STARTUP_LINE 2
+#define N_STARTUP_LINE 0
 
 // Floating decimal points for values
 #define N_DECIMAL_COORDVALUE_INCH 4
@@ -99,10 +99,10 @@
 #define RESTORE_OVERRIDES_AFTER_PROGRAM_END
 
 // Status report field configuration
-#define REPORT_FIELD_PIN_STATE
+// #define REPORT_FIELD_PIN_STATE
 #define REPORT_FIELD_WORK_COORD_OFFSET
-#define REPORT_FIELD_OVERRIDES
-#define REPORT_FIELD_LINE_NUMBERS
+// #define REPORT_FIELD_OVERRIDES
+// #define REPORT_FIELD_LINE_NUMBERS
 
 // Status report refresh rates
 #define REPORT_OVR_REFRESH_BUSY_COUNT 20
@@ -132,23 +132,23 @@
 #define DWELL_TIME_STEP 50 // milliseconds
 
 // Planner and segment buffer sizes (uncomment to override defaults)
-// #define BLOCK_BUFFER_SIZE 16
+#define BLOCK_BUFFER_SIZE 12
 // #define SEGMENT_BUFFER_SIZE 6
 
 // Line buffer size
 // #define LINE_BUFFER_SIZE 80
 
 // Serial buffer sizes
-// #define RX_BUFFER_SIZE 128
-// #define TX_BUFFER_SIZE 100
+#define RX_BUFFER_SIZE 64
+#define TX_BUFFER_SIZE 64
 
 // EEPROM restore commands
-#define ENABLE_RESTORE_EEPROM_WIPE_ALL
+// #define ENABLE_RESTORE_EEPROM_WIPE_ALL
 #define ENABLE_RESTORE_EEPROM_DEFAULT_SETTINGS
-#define ENABLE_RESTORE_EEPROM_CLEAR_PARAMETERS
+// #define ENABLE_RESTORE_EEPROM_CLEAR_PARAMETERS
 
 // Build info write command
-#define ENABLE_BUILD_INFO_WRITE_COMMAND
+// #define ENABLE_BUILD_INFO_WRITE_COMMAND
 
 // Force buffer sync during EEPROM writes
 #define FORCE_BUFFER_SYNC_DURING_EEPROM_WRITE
