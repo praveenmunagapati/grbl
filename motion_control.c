@@ -279,8 +279,8 @@ void mc_reset()
   if (bit_isfalse(sys_rt_exec_state, EXEC_RESET)) {
     system_set_exec_state_flag(EXEC_RESET);
 
-    // Kill spindle.
-    spindle_stop();
+    // Kill pen.
+    pen_stop();
 
     // Kill steppers only if in any motion state, i.e. cycle, actively holding, or homing.
     if ((sys.state & (STATE_CYCLE | STATE_HOMING | STATE_JOG)) ||

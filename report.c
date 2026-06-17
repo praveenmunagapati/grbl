@@ -514,7 +514,7 @@ void report_realtime_status()
       serial_write(',');
       print_uint8_base10(100);
 
-      uint8_t sp_state = spindle_get_state();
+      uint8_t sp_state = pen_get_state();
       if (sp_state) {
         printPgmString(PSTR("|A:"));
         serial_write('S');

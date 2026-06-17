@@ -597,7 +597,7 @@ uint8_t gc_execute_line(char *line)
   // [4. Set spindle speed ]:
   if (gc_state.spindle_speed != gc_block.values.s) {
     if (gc_state.modal.spindle != SPINDLE_DISABLE) { 
-      spindle_sync(gc_state.modal.spindle, 0.0);
+      pen_sync(gc_state.modal.spindle, 0.0);
     }
     gc_state.spindle_speed = gc_block.values.s; // Update spindle speed state.
   }
@@ -608,7 +608,7 @@ uint8_t gc_execute_line(char *line)
 
   // [7. Spindle control ]:
   if (gc_state.modal.spindle != gc_block.modal.spindle) {
-    spindle_sync(gc_block.modal.spindle, pl_data->spindle_speed);
+    pen_sync(gc_block.modal.spindle, pl_data->spindle_speed);
     gc_state.modal.spindle = gc_block.modal.spindle;
   }
   pl_data->condition |= gc_state.modal.spindle; // Set condition flag for planner use.
@@ -711,7 +711,7 @@ uint8_t gc_execute_line(char *line)
       if (sys.state != STATE_CHECK_MODE) {
         if (!(settings_read_coord_data(gc_state.modal.coord_select,gc_state.coord_system))) { FAIL(STATUS_SETTING_READ_FAIL); }
         system_flag_wco_change(); // Set to refresh immediately just in case something altered.
-        spindle_set_state(SPINDLE_DISABLE,0.0);
+        pen_set_state(SPINDLE_DISABLE,0.0);
       }
       report_feedback_message(MESSAGE_PROGRAM_END);
     }

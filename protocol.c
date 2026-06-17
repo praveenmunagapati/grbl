@@ -337,12 +337,12 @@ static void protocol_exec_rt_suspend()
       // Sleep state handling.
       if (sys.state == STATE_SLEEP) {
         if (bit_isfalse(sys.suspend,SUSPEND_RETRACT_COMPLETE)) {
-          spindle_set_state(SPINDLE_DISABLE,0.0); // De-energize
+          pen_set_state(SPINDLE_DISABLE,0.0); // De-energize
           sys.suspend &= ~(SUSPEND_RESTART_RETRACT);
           sys.suspend |= SUSPEND_RETRACT_COMPLETE;
         } else {
           report_feedback_message(MESSAGE_SLEEP_MODE);
-          spindle_set_state(SPINDLE_DISABLE,0.0); // De-energize
+          pen_set_state(SPINDLE_DISABLE,0.0); // De-energize
           st_go_idle(); // Disable steppers
           while (!(sys.abort)) { protocol_exec_rt_system(); } // Do nothing until reset.
           return; // Abort received. Return to re-initialize.

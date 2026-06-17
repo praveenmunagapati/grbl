@@ -67,10 +67,10 @@
   #define LIMIT_INT_vect   PCINT0_vect
   #define LIMIT_PCMSK      PCMSK0
 
-  // Define spindle enable output pin (used as general output).
-  #define SPINDLE_ENABLE_DDR    DDRB
-  #define SPINDLE_ENABLE_PORT   PORTB
-  #define SPINDLE_ENABLE_BIT    5  // Nano Digital Pin 13
+  // Define pen enable output pin (used as general output).
+  #define PEN_ENABLE_DDR    DDRB
+  #define PEN_ENABLE_PORT   PORTB
+  #define PEN_ENABLE_BIT    5  // Nano Digital Pin 13
 
   // Define user-control pins (cycle start, reset, feed hold).
   // NOTE: All CONTROLs pins must be on the same port and not on a port with other input pins (limits).
