@@ -165,9 +165,7 @@ void limits_go_home(uint8_t cycle_mask)
   for (idx=0; idx<N_AXIS; idx++) {
     // Initialize step pin masks
     step_pin[idx] = get_step_pin_mask(idx);
-    #ifdef COREXY
-      if ((idx==A_MOTOR)||(idx==B_MOTOR)) { step_pin[idx] = (get_step_pin_mask(X_AXIS)|get_step_pin_mask(Y_AXIS)); }
-    #endif
+
 
     if (bit_istrue(cycle_mask,bit(idx))) {
       // Set target based on max_travel setting. Ensure homing switches engaged with search scalar.
@@ -192,20 +190,7 @@ void limits_go_home(uint8_t cycle_mask)
       // Set target location for active axes and setup computation for homing rate.
       if (bit_istrue(cycle_mask,bit(idx))) {
         n_active_axis++;
-        #ifdef COREXY
-          if (idx == X_AXIS) {
-            int32_t axis_position = system_convert_corexy_to_y_axis_steps(sys_position);
-            sys_position[A_MOTOR] = axis_position;
-            sys_position[B_MOTOR] = -axis_position;
-          } else if (idx == Y_AXIS) {
-            int32_t axis_position = system_convert_corexy_to_x_axis_steps(sys_position);
-            sys_position[A_MOTOR] = sys_position[B_MOTOR] = axis_position;
-          } else {
-            sys_position[Z_AXIS] = 0;
-          }
-        #else
-          sys_position[idx] = 0;
-        #endif
+        sys_position[idx] = 0;
         // Set target direction based on cycle mask and homing cycle approach state.
         // NOTE: This happens to compile smaller than any other implementation tried.
         if (bit_istrue(settings.homing_dir_mask,bit(idx))) {
@@ -237,12 +222,7 @@ void limits_go_home(uint8_t cycle_mask)
         for (idx=0; idx<N_AXIS; idx++) {
           if (axislock & step_pin[idx]) {
             if (limit_state & (1 << idx)) {
-              #ifdef COREXY
-                if (idx==Z_AXIS) { axislock &= ~(step_pin[Z_AXIS]); }
-                else { axislock &= ~(step_pin[A_MOTOR]|step_pin[B_MOTOR]); }
-              #else
                 axislock &= ~(step_pin[idx]);
-              #endif
             }
           }
         }
@@ -252,12 +232,10 @@ void limits_go_home(uint8_t cycle_mask)
       st_prep_buffer(); // Check and prep segment buffer. NOTE: Should take no longer than 200us.
 
       // Exit routines: No time to run protocol_execute_realtime() in this loop.
-      if (sys_rt_exec_state & (EXEC_SAFETY_DOOR | EXEC_RESET | EXEC_CYCLE_STOP)) {
+      if (sys_rt_exec_state & (EXEC_RESET | EXEC_CYCLE_STOP)) {
         uint8_t rt_exec = sys_rt_exec_state;
         // Homing failure condition: Reset issued during cycle.
         if (rt_exec & EXEC_RESET) { system_set_exec_alarm(EXEC_ALARM_HOMING_FAIL_RESET); }
-        // Homing failure condition: Safety door was opened.
-        if (rt_exec & EXEC_SAFETY_DOOR) { system_set_exec_alarm(EXEC_ALARM_HOMING_FAIL_DOOR); }
         // Homing failure condition: Limit switch still engaged after pull-off motion
         if (!approach && (limits_get_state() & cycle_mask)) { system_set_exec_alarm(EXEC_ALARM_HOMING_FAIL_PULLOFF); }
         // Homing failure condition: Limit switch not found during approach.
@@ -313,21 +291,7 @@ void limits_go_home(uint8_t cycle_mask)
         }
       #endif
 
-      #ifdef COREXY
-        if (idx==X_AXIS) {
-          int32_t off_axis_position = system_convert_corexy_to_y_axis_steps(sys_position);
-          sys_position[A_MOTOR] = set_axis_position + off_axis_position;
-          sys_position[B_MOTOR] = set_axis_position - off_axis_position;
-        } else if (idx==Y_AXIS) {
-          int32_t off_axis_position = system_convert_corexy_to_x_axis_steps(sys_position);
-          sys_position[A_MOTOR] = off_axis_position + set_axis_position;
-          sys_position[B_MOTOR] = off_axis_position - set_axis_position;
-        } else {
-          sys_position[idx] = set_axis_position;
-        }
-      #else
         sys_position[idx] = set_axis_position;
-      #endif
 
     }
   }

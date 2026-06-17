@@ -1,6 +1,6 @@
 /*
   planner.h - buffers movement commands and manages the acceleration profile plan
-  Part of Grbl
+  Part of Grbl - Pen Plotter Edition
 
   Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
   Copyright (c) 2009-2011 Simen Svale Skogsrud
@@ -43,10 +43,8 @@
 #define PL_COND_FLAG_INVERSE_TIME      bit(3) // Interprets feed rate value as inverse time when set.
 #define PL_COND_FLAG_SPINDLE_CW        bit(4)
 #define PL_COND_FLAG_SPINDLE_CCW       bit(5)
-#define PL_COND_FLAG_COOLANT_FLOOD     bit(6)
-#define PL_COND_FLAG_COOLANT_MIST      bit(7)
 #define PL_COND_MOTION_MASK    (PL_COND_FLAG_RAPID_MOTION|PL_COND_FLAG_SYSTEM_MOTION|PL_COND_FLAG_NO_FEED_OVERRIDE)
-#define PL_COND_ACCESSORY_MASK (PL_COND_FLAG_SPINDLE_CW|PL_COND_FLAG_SPINDLE_CCW|PL_COND_FLAG_COOLANT_FLOOD|PL_COND_FLAG_COOLANT_MIST)
+#define PL_COND_ACCESSORY_MASK (PL_COND_FLAG_SPINDLE_CW|PL_COND_FLAG_SPINDLE_CCW)
 
 
 // This struct stores a linear movement of a g-code block motion with its critical "nominal" values
@@ -77,11 +75,6 @@ typedef struct {
   float max_junction_speed_sqr; // Junction entry speed limit based on direction vectors in (mm/min)^2
   float rapid_rate;             // Axis-limit adjusted maximum rate for this block direction in (mm/min)
   float programmed_rate;        // Programmed rate of this block (mm/min).
-
-  #ifdef VARIABLE_SPINDLE
-    // Stored spindle speed data used by spindle overrides and resuming methods.
-    float spindle_speed;    // Block spindle speed. Copied from pl_line_data.
-  #endif
 } plan_block_t;
 
 

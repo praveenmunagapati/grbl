@@ -1,6 +1,6 @@
 /*
   motion_control.c - high level interface for issuing motion commands
-  Part of Grbl
+  Part of Grbl - Pen Plotter Edition
 
   Copyright (c) 2011-2016 Sungeun K. Jeon for Gnea Research LLC
   Copyright (c) 2009-2011 Simen Svale Skogsrud
@@ -41,20 +41,6 @@ void mc_line(float *target, plan_line_data_t *pl_data)
   // If in check gcode mode, prevent motion by blocking planner. Soft limits still work.
   if (sys.state == STATE_CHECK_MODE) { return; }
 
-  // NOTE: Backlash compensation may be installed here. It will need direction info to track when
-  // to insert a backlash line motion(s) before the intended line motion and will require its own
-  // plan_check_full_buffer() and check for system abort loop. Also for position reporting
-  // backlash steps will need to be also tracked, which will need to be kept at a system level.
-  // There are likely some other things that will need to be tracked as well. However, we feel
-  // that backlash compensation should NOT be handled by Grbl itself, because there are a myriad
-  // of ways to implement it and can be effective or ineffective for different CNC machines. This
-  // would be better handled by the interface as a post-processor task, where the original g-code
-  // is translated and inserts backlash motions that best suits the machine.
-  // NOTE: Perhaps as a middle-ground, all that needs to be sent is a flag or special command that
-  // indicates to Grbl what is a backlash compensation motion, so that Grbl executes the move but
-  // doesn't update the machine position values. Since the position values used by the g-code
-  // parser and planner are separate from the system machine positions, this is doable.
-
   // If the buffer is full: good! That means we are well ahead of the robot.
   // Remain in this loop until there is room in the buffer.
   do {
@@ -65,15 +51,7 @@ void mc_line(float *target, plan_line_data_t *pl_data)
   } while (1);
 
   // Plan and queue motion into planner buffer
-  if (plan_buffer_line(target, pl_data) == PLAN_EMPTY_BLOCK) {
-    if (bit_istrue(settings.flags,BITFLAG_LASER_MODE)) {
-      // Correctly set spindle state, if there is a coincident position passed. Forces a buffer
-      // sync while in M3 laser mode only.
-      if (pl_data->condition & PL_COND_FLAG_SPINDLE_CW) {
-        spindle_sync(PL_COND_FLAG_SPINDLE_CW, pl_data->spindle_speed);
-      }
-    }
-  }
+  plan_buffer_line(target, pl_data);
 }
 
 
@@ -102,10 +80,7 @@ void mc_arc(float *target, plan_line_data_t *pl_data, float *position, float *of
     if (angular_travel <= ARC_ANGULAR_TRAVEL_EPSILON) { angular_travel += 2*M_PI; }
   }
 
-  // NOTE: Segment end points are on the arc, which can lead to the arc diameter being smaller by up to
-  // (2x) settings.arc_tolerance. For 99% of users, this is just fine. If a different arc segment fit
-  // is desired, i.e. least-squares, midpoint on arc, just change the mm_per_arc_segment calculation.
-  // For the intended uses of Grbl, this value shouldn't exceed 2000 for the strictest of cases.
+  // CCW angle between position and target from circle center. Only one atan2() trig computation required.
   uint16_t segments = floor(fabs(0.5*angular_travel*radius)/
                           sqrt(settings.arc_tolerance*(2*radius - settings.arc_tolerance)) );
 
@@ -121,31 +96,6 @@ void mc_arc(float *target, plan_line_data_t *pl_data, float *position, float *of
     float theta_per_segment = angular_travel/segments;
     float linear_per_segment = (target[axis_linear] - position[axis_linear])/segments;
 
-    /* Vector rotation by transformation matrix: r is the original vector, r_T is the rotated vector,
-       and phi is the angle of rotation. Solution approach by Jens Geisler.
-           r_T = [cos(phi) -sin(phi);
-                  sin(phi)  cos(phi] * r ;
-
-       For arc generation, the center of the circle is the axis of rotation and the radius vector is
-       defined from the circle center to the initial position. Each line segment is formed by successive
-       vector rotations. Single precision values can accumulate error greater than tool precision in rare
-       cases. So, exact arc path correction is implemented. This approach avoids the problem of too many very
-       expensive trig operations [sin(),cos(),tan()] which can take 100-200 usec each to compute.
-
-       Small angle approximation may be used to reduce computation overhead further. A third-order approximation
-       (second order sin() has too much error) holds for most, if not, all CNC applications. Note that this
-       approximation will begin to accumulate a numerical drift error when theta_per_segment is greater than
-       ~0.25 rad(14 deg) AND the approximation is successively used without correction several dozen times. This
-       scenario is extremely unlikely, since segment lengths and theta_per_segment are automatically generated
-       and scaled by the arc tolerance setting. Only a very large arc tolerance setting, unrealistic for CNC
-       applications, would cause this numerical drift error. However, it is best to set N_ARC_CORRECTION from a
-       low of ~4 to a high of ~20 or so to avoid trig operations while keeping arc generation accurate.
-
-       This approximation also allows mc_arc to immediately insert a line segment into the planner
-       without the initial overhead of computing cos() or sin(). By the time the arc needs to be applied
-       a correction, the planner should have caught up to the lag caused by the initial mc_arc overhead.
-       This is important when there are successive arc motions.
-    */
     // Computes: cos_T = 1 - theta_per_segment^2/2, sin_T = theta_per_segment - theta_per_segment^3/6) in ~52usec
     float cos_T = 2.0 - theta_per_segment*theta_per_segment;
     float sin_T = theta_per_segment*0.16666667*(cos_T + 4.0);
@@ -167,7 +117,6 @@ void mc_arc(float *target, plan_line_data_t *pl_data, float *position, float *of
         count++;
       } else {
         // Arc correction to radius vector. Computed only every N_ARC_CORRECTION increments. ~375 usec
-        // Compute exact location by applying transformation matrix from initial radius vector(=-offset).
         cos_Ti = cos(i*theta_per_segment);
         sin_Ti = sin(i*theta_per_segment);
         r_axis0 = -offset[axis_0]*cos_Ti + offset[axis_1]*sin_Ti;
@@ -207,10 +156,9 @@ void mc_homing_cycle(uint8_t cycle_mask)
 {
   // Check and abort homing cycle, if hard limits are already enabled. Helps prevent problems
   // with machines with limits wired on both ends of travel to one limit pin.
-  // TODO: Move the pin-specific LIMIT_PIN call to limits.c as a function.
   #ifdef LIMITS_TWO_SWITCHES_ON_AXES
     if (limits_get_state()) {
-      mc_reset(); // Issue system reset and ensure spindle and coolant are shutdown.
+      mc_reset(); // Issue system reset and ensure spindle is shutdown.
       system_set_exec_alarm(EXEC_ALARM_HARD_LIMIT);
       return;
     }
@@ -218,9 +166,7 @@ void mc_homing_cycle(uint8_t cycle_mask)
 
   limits_disable(); // Disable hard limits pin change register for cycle duration
 
-  // -------------------------------------------------------------------------------------
   // Perform homing routine. NOTE: Special motion case. Only system reset works.
-  
   #ifdef HOMING_SINGLE_AXIS_COMMANDS
     if (cycle_mask) { limits_go_home(cycle_mask); } // Perform homing cycle based on mask.
     else
@@ -240,8 +186,6 @@ void mc_homing_cycle(uint8_t cycle_mask)
   if (sys.abort) { return; } // Did not complete. Alarm state set by mc_alarm.
 
   // Homing cycle complete! Setup system for normal operation.
-  // -------------------------------------------------------------------------------------
-
   // Sync gcode parser and planner positions to homed position.
   gc_sync_position();
   plan_sync_position();
@@ -249,113 +193,6 @@ void mc_homing_cycle(uint8_t cycle_mask)
   // If hard limits feature enabled, re-enable hard limits pin change register after homing cycle.
   limits_init();
 }
-
-
-// Perform tool length probe cycle. Requires probe switch.
-// NOTE: Upon probe failure, the program will be stopped and placed into ALARM state.
-uint8_t mc_probe_cycle(float *target, plan_line_data_t *pl_data, uint8_t parser_flags)
-{
-  // TODO: Need to update this cycle so it obeys a non-auto cycle start.
-  if (sys.state == STATE_CHECK_MODE) { return(GC_PROBE_CHECK_MODE); }
-
-  // Finish all queued commands and empty planner buffer before starting probe cycle.
-  protocol_buffer_synchronize();
-  if (sys.abort) { return(GC_PROBE_ABORT); } // Return if system reset has been issued.
-
-  // Initialize probing control variables
-  uint8_t is_probe_away = bit_istrue(parser_flags,GC_PARSER_PROBE_IS_AWAY);
-  uint8_t is_no_error = bit_istrue(parser_flags,GC_PARSER_PROBE_IS_NO_ERROR);
-  sys.probe_succeeded = false; // Re-initialize probe history before beginning cycle.
-  probe_configure_invert_mask(is_probe_away);
-
-  // After syncing, check if probe is already triggered. If so, halt and issue alarm.
-  // NOTE: This probe initialization error applies to all probing cycles.
-  if ( probe_get_state() ) { // Check probe pin state.
-    system_set_exec_alarm(EXEC_ALARM_PROBE_FAIL_INITIAL);
-    protocol_execute_realtime();
-    probe_configure_invert_mask(false); // Re-initialize invert mask before returning.
-    return(GC_PROBE_FAIL_INIT); // Nothing else to do but bail.
-  }
-
-  // Setup and queue probing motion. Auto cycle-start should not start the cycle.
-  mc_line(target, pl_data);
-
-  // Activate the probing state monitor in the stepper module.
-  sys_probe_state = PROBE_ACTIVE;
-
-  // Perform probing cycle. Wait here until probe is triggered or motion completes.
-  system_set_exec_state_flag(EXEC_CYCLE_START);
-  do {
-    protocol_execute_realtime();
-    if (sys.abort) { return(GC_PROBE_ABORT); } // Check for system abort
-  } while (sys.state != STATE_IDLE);
-
-  // Probing cycle complete!
-
-  // Set state variables and error out, if the probe failed and cycle with error is enabled.
-  if (sys_probe_state == PROBE_ACTIVE) {
-    if (is_no_error) { memcpy(sys_probe_position, sys_position, sizeof(sys_position)); }
-    else { system_set_exec_alarm(EXEC_ALARM_PROBE_FAIL_CONTACT); }
-  } else {
-    sys.probe_succeeded = true; // Indicate to system the probing cycle completed successfully.
-  }
-  sys_probe_state = PROBE_OFF; // Ensure probe state monitor is disabled.
-  probe_configure_invert_mask(false); // Re-initialize invert mask.
-  protocol_execute_realtime();   // Check and execute run-time commands
-
-  // Reset the stepper and planner buffers to remove the remainder of the probe motion.
-  st_reset(); // Reset step segment buffer.
-  plan_reset(); // Reset planner buffer. Zero planner positions. Ensure probing motion is cleared.
-  plan_sync_position(); // Sync planner position to current machine position.
-
-  #ifdef MESSAGE_PROBE_COORDINATES
-    // All done! Output the probe position as message.
-    report_probe_parameters();
-  #endif
-
-  if (sys.probe_succeeded) { return(GC_PROBE_FOUND); } // Successful probe cycle.
-  else { return(GC_PROBE_FAIL_END); } // Failed to trigger probe within travel. With or without error.
-}
-
-
-// Plans and executes the single special motion case for parking. Independent of main planner buffer.
-// NOTE: Uses the always free planner ring buffer head to store motion parameters for execution.
-#ifdef PARKING_ENABLE
-  void mc_parking_motion(float *parking_target, plan_line_data_t *pl_data)
-  {
-    if (sys.abort) { return; } // Block during abort.
-
-    uint8_t plan_status = plan_buffer_line(parking_target, pl_data);
-
-    if (plan_status) {
-      bit_true(sys.step_control, STEP_CONTROL_EXECUTE_SYS_MOTION);
-      bit_false(sys.step_control, STEP_CONTROL_END_MOTION); // Allow parking motion to execute, if feed hold is active.
-      st_parking_setup_buffer(); // Setup step segment buffer for special parking motion case
-      st_prep_buffer();
-      st_wake_up();
-      do {
-        protocol_exec_rt_system();
-        if (sys.abort) { return; }
-      } while (sys.step_control & STEP_CONTROL_EXECUTE_SYS_MOTION);
-      st_parking_restore_buffer(); // Restore step segment buffer to normal run state.
-    } else {
-      bit_false(sys.step_control, STEP_CONTROL_EXECUTE_SYS_MOTION);
-      protocol_exec_rt_system();
-    }
-
-  }
-#endif
-
-
-#ifdef ENABLE_PARKING_OVERRIDE_CONTROL
-  void mc_override_ctrl_update(uint8_t override_state)
-  {
-    // Finish all queued commands before altering override control state
-    protocol_buffer_synchronize();
-    if (sys.abort) { return; }
-    sys.override_ctrl = override_state;
-  }
-#endif
 
 
 // Method to ready the system to reset by setting the realtime reset command and killing any
@@ -369,14 +206,10 @@ void mc_reset()
   if (bit_isfalse(sys_rt_exec_state, EXEC_RESET)) {
     system_set_exec_state_flag(EXEC_RESET);
 
-    // Kill spindle and coolant.
+    // Kill spindle.
     spindle_stop();
-    coolant_stop();
 
     // Kill steppers only if in any motion state, i.e. cycle, actively holding, or homing.
-    // NOTE: If steppers are kept enabled via the step idle delay setting, this also keeps
-    // the steppers enabled by avoiding the go_idle call altogether, unless the motion state is
-    // violated, by which, all bets are off.
     if ((sys.state & (STATE_CYCLE | STATE_HOMING | STATE_JOG)) ||
     		(sys.step_control & (STEP_CONTROL_EXECUTE_HOLD | STEP_CONTROL_EXECUTE_SYS_MOTION))) {
       if (sys.state == STATE_HOMING) { 

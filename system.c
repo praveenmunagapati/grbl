@@ -45,9 +45,7 @@ uint8_t system_control_get_state()
     pin ^= INVERT_CONTROL_PIN_MASK;
   #endif
   if (pin) {
-    #ifdef ENABLE_SAFETY_DOOR_INPUT_PIN
-      if (bit_isfalse(pin,(1<<CONTROL_SAFETY_DOOR_BIT))) { control_state |= CONTROL_PIN_INDEX_SAFETY_DOOR; }
-    #endif
+
     if (bit_isfalse(pin,(1<<CONTROL_RESET_BIT))) { control_state |= CONTROL_PIN_INDEX_RESET; }
     if (bit_isfalse(pin,(1<<CONTROL_FEED_HOLD_BIT))) { control_state |= CONTROL_PIN_INDEX_FEED_HOLD; }
     if (bit_isfalse(pin,(1<<CONTROL_CYCLE_START_BIT))) { control_state |= CONTROL_PIN_INDEX_CYCLE_START; }
@@ -68,27 +66,14 @@ ISR(CONTROL_INT_vect)
       mc_reset();
     } else if (bit_istrue(pin,CONTROL_PIN_INDEX_CYCLE_START)) {
       bit_true(sys_rt_exec_state, EXEC_CYCLE_START);
-    #ifndef ENABLE_SAFETY_DOOR_INPUT_PIN
       } else if (bit_istrue(pin,CONTROL_PIN_INDEX_FEED_HOLD)) {
         bit_true(sys_rt_exec_state, EXEC_FEED_HOLD);
-    #else
-      } else if (bit_istrue(pin,CONTROL_PIN_INDEX_SAFETY_DOOR)) {
-        bit_true(sys_rt_exec_state, EXEC_SAFETY_DOOR);
-    #endif
     }
   }
 }
 
 
-// Returns if safety door is ajar(T) or closed(F), based on pin state.
-uint8_t system_check_safety_door_ajar()
-{
-  #ifdef ENABLE_SAFETY_DOOR_INPUT_PIN
-    return(system_control_get_state() & CONTROL_PIN_INDEX_SAFETY_DOOR);
-  #else
-    return(false); // Input pin not enabled, so just return that it's closed.
-  #endif
-}
+
 
 
 // Executes user startup script, if stored.
@@ -156,8 +141,7 @@ uint8_t system_execute_line(char *line)
           break;
         case 'X' : // Disable alarm lock [ALARM]
           if (sys.state == STATE_ALARM) {
-            // Block if safety door is ajar.
-            if (system_check_safety_door_ajar()) { return(STATUS_CHECK_DOOR); }
+
             report_feedback_message(MESSAGE_ALARM_UNLOCK);
             sys.state = STATE_IDLE;
             // Don't run startup script. Prevents stored moves in startup from causing accidents.
@@ -175,7 +159,7 @@ uint8_t system_execute_line(char *line)
           break;
         case 'H' : // Perform homing cycle [IDLE/ALARM]
           if (bit_isfalse(settings.flags,BITFLAG_HOMING_ENABLE)) {return(STATUS_SETTING_DISABLED); }
-          if (system_check_safety_door_ajar()) { return(STATUS_CHECK_DOOR); } // Block if safety door is ajar.
+
           sys.state = STATE_HOMING; // Set system state variable
           if (line[2] == 0) {
             mc_homing_cycle(HOMING_CYCLE_ALL);
@@ -289,17 +273,7 @@ void system_flag_wco_change()
 float system_convert_axis_steps_to_mpos(int32_t *steps, uint8_t idx)
 {
   float pos;
-  #ifdef COREXY
-    if (idx==X_AXIS) {
-      pos = (float)system_convert_corexy_to_x_axis_steps(steps) / settings.steps_per_mm[idx];
-    } else if (idx==Y_AXIS) {
-      pos = (float)system_convert_corexy_to_y_axis_steps(steps) / settings.steps_per_mm[idx];
-    } else {
-      pos = steps[idx]/settings.steps_per_mm[idx];
-    }
-  #else
-    pos = steps[idx]/settings.steps_per_mm[idx];
-  #endif
+  pos = steps[idx]/settings.steps_per_mm[idx];
   return(pos);
 }
 
@@ -314,17 +288,7 @@ void system_convert_array_steps_to_mpos(float *position, int32_t *steps)
 }
 
 
-// CoreXY calculation only. Returns x or y-axis "steps" based on CoreXY motor steps.
-#ifdef COREXY
-  int32_t system_convert_corexy_to_x_axis_steps(int32_t *steps)
-  {
-    return( (steps[A_MOTOR] + steps[B_MOTOR])/2 );
-  }
-  int32_t system_convert_corexy_to_y_axis_steps(int32_t *steps)
-  {
-    return( (steps[A_MOTOR] - steps[B_MOTOR])/2 );
-  }
-#endif
+
 
 
 // Checks and reports if target array exceeds machine travel limits.
@@ -385,12 +349,7 @@ void system_set_exec_motion_override_flag(uint8_t mask) {
   SREG = sreg;
 }
 
-void system_set_exec_accessory_override_flag(uint8_t mask) {
-  uint8_t sreg = SREG;
-  cli();
-  sys_rt_exec_accessory_override |= (mask);
-  SREG = sreg;
-}
+
 
 void system_clear_exec_motion_overrides() {
   uint8_t sreg = SREG;
@@ -399,9 +358,4 @@ void system_clear_exec_motion_overrides() {
   SREG = sreg;
 }
 
-void system_clear_exec_accessory_overrides() {
-  uint8_t sreg = SREG;
-  cli();
-  sys_rt_exec_accessory_override = 0;
-  SREG = sreg;
-}
+
