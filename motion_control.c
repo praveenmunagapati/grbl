@@ -165,9 +165,13 @@ void mc_bezier(float *target, plan_line_data_t *pl_data, float *position, float 
   
   float curve_length = dist1 + dist2 + dist3;
   
-  // Set segment length to ~0.5mm
-  uint16_t segments = floor(curve_length / 0.5);
+  // Dynamically scale segment length based on global arc tolerance setting.
+  // Using approximation N = sqrt(L / 2T) ensures max chordal error stays near tolerance without stalling CPU.
+  uint16_t segments = floor(sqrt(curve_length / (2.0 * settings.arc_tolerance)));
   if (segments < 1) { segments = 1; }
+  
+  // Limit maximum segments to prevent watchdog/loop stalls on massive curves
+  if (segments > 255) { segments = 255; }
   
   float t_step = 1.0 / segments;
   float t = 0.0;
